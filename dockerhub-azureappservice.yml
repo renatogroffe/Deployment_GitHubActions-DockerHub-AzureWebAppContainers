@@ -1,0 +1,40 @@
+name: Docker Hub + Azure App Service
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Docker Login - Docker Hub
+      uses: Azure/docker-login@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+    - name: Build e Push no Docker Hub
+      run: |
+        cd ${{ secrets.PATH_PROJETO }}
+        docker build . --file Dockerfile --tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.NOME_IMAGEM }}:$GITHUB_RUN_NUMBER
+        docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.NOME_IMAGEM }}:$GITHUB_RUN_NUMBER ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.NOME_IMAGEM }}:latest
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.NOME_IMAGEM }}
+
+    - name: Logando no Azure para Deployment
+      uses: Azure/login@v1.1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Azure WebApp Container - Deployment da Aplicacao
+      uses: Azure/webapps-container-deploy@v1
+      with:
+        app-name: ${{ secrets.WEB_APP }}
+        images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.NOME_IMAGEM }}:latest
